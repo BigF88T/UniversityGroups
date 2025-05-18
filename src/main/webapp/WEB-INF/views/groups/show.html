@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Группа - <span th:text="${group.getNumber()}"></span></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+
+        .header {
+            color: #0d6efd;
+            margin-bottom: 30px;
+            text-align: center;
+            padding: 20px 0;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .table-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(13, 110, 253, 0.05);
+        }
+
+        .table-primary th {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        .add-group-form {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+
+        .form-control:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+        .btn-action {
+            margin-right: 5px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        .btn-primary {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            background-color: #0b5ed7;
+            border-color: #0a58ca;
+        }
+
+        .mb-4 {
+            margin-bottom: 1.5rem !important;
+        }
+
+        .w-100 {
+            width: 100% !important;
+        }
+    </style>
+</head>
+<body>
+<div class="container mt-4">
+    <h1 class="mb-4">Группа: <span th:text="${group.getNumber()}"></span></h1>
+
+    <div class="table-container">
+        <table class="table table-hover" id="studentsTable">
+            <thead class="table-primary">
+            <tr>
+                <th>Дата принятия</th>
+                <th>ФИО Студента</th>
+                <th>Действия</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="student : ${group.getStudents()}">
+                <td th:text="${#temporals.format(student.getDateOfAdoption(), 'dd.MM.yyyy')}"></td>
+                <td th:text="${student.getName()}"></td>
+                <td>
+                    <button class="btn btn-outline-danger btn-sm delete-btn"
+                            th:data-student-id="${student.getId()}">
+                        Удалить
+                    </button>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Добавить нового студента</h5>
+            <div class="input-group mb-3">
+                <input type="text" class="form-control" id="newStudentName" placeholder="ФИО">
+                <button class="btn btn-primary" type="button" id="addStudentBtn">Принять нового студента</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <a th:href="@{/groups}" class="btn btn-primary w-100">Вернуться к списку групп</a>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        // Добавление нового студента
+        $('#addStudentBtn').click(function() {
+            const name = $('#newStudentName').val().trim();
+            if (!name) {
+                alert('Пожалуйста, введите ФИО студента');
+                return;
+            }
+
+            const groupId = [[${group.getId()}]];
+            const dateOfAdoption = new Date().toISOString();
+
+            $.ajax({
+                url: '/students/new',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    name: name,
+                    dateOfAdoption: dateOfAdoption,
+                    groupId: groupId
+                }),
+                success: function(response) {
+                    console.log('Server response:', response); // Для отладки
+
+                    // Форматируем дату из ответа сервера
+                    const formattedDate = response.dateOfAdoption;
+
+                    const newRow = `
+                        <tr>
+                            <td>${formattedDate}</td>
+                            <td>${response.name}</td>
+                            <td>
+                                <button class="btn btn-outline-danger btn-sm delete-btn"
+                                        data-student-id="${response.id}">
+                                    Удалить
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    $('#studentsTable tbody').append(newRow);
+                    $('#newStudentName').val('');
+                },
+                error: function(xhr) {
+                    console.error('Error:', xhr.responseText);
+                    alert('Ошибка при добавлении студента');
+                }
+            });
+        });
+
+        // Остальной код без изменений
+        $(document).on('click', '.delete-btn', function() {
+            if (!confirm('Вы уверены, что хотите удалить этого студента?')) {
+                return;
+            }
+
+            const studentId = $(this).data('student-id');
+            const row = $(this).closest('tr');
+
+            $.ajax({
+                url: '/students/' + studentId,
+                type: 'DELETE',
+                success: function() {
+                    row.remove();
+                },
+                error: function() {
+                    alert('Ошибка при удалении студента');
+                }
+            });
+        });
+    });
+</script>
+</body>
+</html>
